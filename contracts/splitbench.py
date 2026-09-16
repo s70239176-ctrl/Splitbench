@@ -1,15 +1,14 @@
-# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+# v0.3.0
+# { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
 
 """Splitbench v1 — native-GEN escrow with GenLayer jury adjudication.
 
-Records are flattened into typed TreeMap[str, str] JSON records.  This avoids
-nested storage collections while keeping every persistent field fully typed.
+...
 """
-
 from datetime import datetime, timezone
 import json
+import genlayer as gl
 from genlayer import *
-
 
 @gl.evm.contract_interface
 class _Recipient:
@@ -324,21 +323,31 @@ and awarded_bps 0. If partial not allowed, only RELEASE or REFUND. Cite URLs use
                 self._save_milestone(milestone)
 
     @gl.public.view
-    def get_job(self, job_id: str) -> dict:
-        return self._load_job(job_id)
+    def get_job(self, job_id: str) -> str:
+        """JSON record: public schemas cannot expose a bare Python dict."""
+        if job_id not in self.jobs:
+            raise gl.vm.UserError("unknown job")
+        return self.jobs[job_id]
 
     @gl.public.view
-    def get_milestone(self, job_id: str, mid: str) -> dict:
-        return self._load_milestone(job_id, mid)
+    def get_milestone(self, job_id: str, mid: str) -> str:
+        """JSON record: public schemas cannot expose a bare Python dict."""
+        key = self._key(job_id, mid)
+        if key not in self.milestones:
+            raise gl.vm.UserError("unknown milestone")
+        return self.milestones[key]
 
     @gl.public.view
-    def list_job_ids(self) -> DynArray[str]:
-        return self.job_ids
+    def list_job_ids(self) -> str:
+        ids = []
+        for job_id in self.job_ids:
+            ids.append(job_id)
+        return json.dumps(ids)
 
     @gl.public.view
-    def preview_payout(self, job_id: str, mid: str) -> dict:
+    def preview_payout(self, job_id: str, mid: str) -> str:
         job = self._load_job(job_id)
         milestone = self._load_milestone(job_id, mid)
         provider = u256(int(job["total"])) * u256(int(milestone["awarded_bps"])) // u256(10000)
         slice_amount = u256(int(job["total"])) * u256(int(milestone["weight_bps"])) // u256(10000)
-        return {"provider": provider, "client": slice_amount - provider}
+        return json.dumps({"provider": int(provider), "client": int(slice_amount - provider)})

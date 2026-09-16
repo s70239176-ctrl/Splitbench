@@ -12,10 +12,8 @@ export async function connectWallet() {
   const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
   const account = accounts[0] as `0x${string}` | undefined;
   if (!account) throw new Error('Wallet returned no account.');
-  const client = createClient({ chain, account, provider: window.ethereum as any });
-  // The `studioDevnet` chain object already contains the Studio Next chain ID,
-  // RPC and consensus contracts. RC client types do not accept a `studio-dev`
-  // string here, so let the client connect using that configured chain.
-  await client.connect();
+
+  // Transaction Kit owns the GenLayer connection. Calling client.connect() here
+  // can reject with an opaque provider object before the transaction UI opens.
   return { account, kit: createTransactionKit({ chain, provider: window.ethereum, account, suggestions: feeProfile }) };
 }

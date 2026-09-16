@@ -38,7 +38,7 @@ export default function App() {
     setBusy('read');
     try {
       const result = await readClient().readContract({ address: contract, functionName: milestone ? 'get_milestone' : 'get_job', args: milestone ? [jobId, mid] : [jobId], jsonSafeReturn: true });
-      setData(result); setNotice({ kind: 'ok', text: `${milestone ? 'Milestone' : 'Job'} loaded from latest chain state.` });
+      setData(typeof result === 'string' ? JSON.parse(result) : result); setNotice({ kind: 'ok', text: `${milestone ? 'Milestone' : 'Job'} loaded from latest chain state.` });
     } catch (e) { setNotice({ kind: 'error', text: message(e) }); }
     finally { setBusy(''); }
   };
@@ -72,4 +72,21 @@ export default function App() {
   </main>;
 }
 function ActionCard({ title, action, fields, onRun, busy }: { title:string; action:string; fields:[string,string][]; onRun:()=>void; busy:string }) { return <article className="card action"><p className="eyebrow">{title}</p><h2>{action}</h2>{fields.map(([n,v]) => <label key={n}>{n}<input readOnly value={v}/></label>)}<button onClick={onRun} disabled={!!busy}>{busy === action ? 'Submitting…' : action}</button></article>; }
-function message(e: unknown) { return e instanceof Error ? e.message : String(e); }
+function message(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object') {
+    const value = error as Record<string, unknown>;
+    const candidates = [value.shortMessage, value.message, value.reason, value.details, value.data];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) return candidate;
+      if (candidate && typeof candidate === 'object') {
+        const nested = candidate as Record<string, unknown>;
+        if (typeof nested.message === 'string' && nested.message.trim()) return nested.message;
+      }
+    }
+    if (typeof value.code === 'number' && value.code === 4001) return 'Wallet connection was rejected.';
+    try { return JSON.stringify(error); } catch { return 'Wallet connection failed with an unknown provider error.'; }
+  }
+  return 'Wallet connection failed with an unknown error.';
+}

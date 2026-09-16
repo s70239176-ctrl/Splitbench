@@ -74,19 +74,17 @@ after partial payouts.
 ## Deploy
 
 ```powershell
-genvm-lint check contracts/splitbench.py
-genlayer deploy --contract contracts/splitbench.py --rpc https://studio.genlayer.com/api
-genlayer network set testnet-bradbury
-genlayer deploy --contract contracts/splitbench.py
+# Install the coherent v0.6 RC toolchain first.
+genlayer network set studio-dev
+genlayer network info
+genlayer deploy --contract contracts/splitbench.py --fee-profile frontend/src/fee-profile.json
 ```
 
-The GenLayer CLI and linter were not installed in this workspace, so deployment
-and direct-mode execution were not performed here. `tests/test_splitbench.py`
-covers portable payout and protocol-guard assertions. With GenLayer Test
-installed, add direct-mode cases for HUMAN open/submit, invalid weights,
-non-provider submit, pre-adjudication settlement, timeout, mutual close, AGENT
-IDs, card snapshots, and an integration `adjudicate` run (the latter needs a
-Studio/local provider capable of web+LLM nondeterminism).
+Hackathon deployment is Studio Next / the v0.6 Studio-dev preview: chain ID
+`61997` and canonical RPC `https://studio-dev.genlayer.com/api`. Use the matching
+`studioDevnet` SDK chain, not stable Studionet. See
+[`DEPLOY_STUDIO_NEXT.md`](DEPLOY_STUDIO_NEXT.md) for the required measured fee
+profile and verification steps.
 
 ## Frontend dashboard
 
@@ -102,10 +100,10 @@ npm install
 npm run dev
 ```
 
-Set `VITE_GENLAYER_NETWORK` to `studionet`, `testnetBradbury`, or
-`testnetAsimov`. The selected browser wallet must be connected to that same
-network. Escrow value is distinct from the fee estimate and is passed as the
-payable transaction value.
+Set `VITE_GENLAYER_NETWORK=studio-dev`. The selected browser wallet must be
+connected to Studio Next (chain ID `61997`). The frontend uses the v0.6
+Transaction Kit fee review, policy verification, signing, and lifecycle tracker;
+escrow value remains distinct from the protocol-fee deposit.
 
 ## Security notes
 

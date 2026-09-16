@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "notice": "Replace this placeholder with the measured output from gltest --fee-profile before deployment. Transaction Kit safely falls back to live network defaults for unmatched methods.",
+  "methods": {}
+}

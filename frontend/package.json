@@ -9,15 +9,17 @@
     "check": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "genlayer-js": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "vite": "latest"
+    "@vitejs/plugin-react": "^4.3.4",
+    "@genlayer/transaction-kit": "0.1.0-rc.2",
+    "@genlayer/transaction-kit-react": "0.1.0-rc.2",
+    "genlayer-js": "2.0.0-rc.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^6.0.5"
   },
   "devDependencies": {
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "typescript": "latest"
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "typescript": "5.7.3"
   }
 }

@@ -1,6 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { GenLayerTransactionPanel } from '@genlayer/transaction-kit-react';
-import '@genlayer/transaction-kit-react/styles.css';
 import { connectWallet, networkName, readClient } from './genlayer';
 
 const configured = (import.meta.env.VITE_SPLITBENCH_ADDRESS || '') as `0x${string}`;

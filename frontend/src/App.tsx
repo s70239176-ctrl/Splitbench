@@ -44,7 +44,7 @@ export default function App() {
     if (value !== undefined) {
       try {
         const transactionKit = kit as any;
-        const quote = await transactionKit.estimate({ preset: 'standard' }, tx);
+        const quote = await transactionKit.estimate({ preset: 'standard', userValue: value }, tx);
         const submitted = await transactionKit.submit(quote, tx);
         setNotice({
           kind: 'ok',

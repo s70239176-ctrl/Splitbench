@@ -29,7 +29,13 @@ export default function App() {
     if (!ready) return setNotice({ kind: 'error', text: 'Enter a valid deployed Splitbench address first.' });
     if (!kit) return setNotice({ kind: 'error', text: 'Connect your Studio Next wallet before starting a transaction.' });
     setBusy(functionName);
-    setPendingTx({ kind: 'write', address: contract, method: functionName, args, ...(value ? { value } : {}) });
+setPendingTx({
+  kind: 'write',
+  address: contract,
+  method: functionName,
+  args,
+  ...(value !== undefined ? { userValue: value } : {}),
+});
     setNotice({ kind: 'info', text: 'Review the live fee quote, appeal posture, and wallet signature in the Transaction Kit panel.' });
   };
   const load = async (milestone = false) => {

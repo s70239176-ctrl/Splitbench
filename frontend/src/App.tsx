@@ -28,15 +28,38 @@ export default function App() {
   const write = async (functionName: string, args: unknown[], value?: bigint) => {
     if (!ready) return setNotice({ kind: 'error', text: 'Enter a valid deployed Splitbench address first.' });
     if (!kit) return setNotice({ kind: 'error', text: 'Connect your Studio Next wallet before starting a transaction.' });
+
     setBusy(functionName);
-setPendingTx({
-  kind: 'write',
-  address: contract,
-  method: functionName,
-  args,
-  ...(value !== undefined ? { userValue: value } : {}),
-});
-    setNotice({ kind: 'info', text: 'Review the live fee quote, appeal posture, and wallet signature in the Transaction Kit panel.' });
+
+    const tx = {
+      kind: 'write' as const,
+      address: contract,
+      method: functionName,
+      args,
+      ...(value !== undefined ? { userValue: value } : {}),
+    };
+
+    // The RC2 React transaction panel omits userValue for payable calls.
+    // Use Transaction Kit directly for open(), which carries the escrow.
+    if (value !== undefined) {
+      try {
+        const transactionKit = kit as any;
+        const quote = await transactionKit.estimate({ preset: 'standard' }, tx);
+        const submitted = await transactionKit.submit(quote, tx);
+        setNotice({
+          kind: 'ok',
+          text: `Escrow transaction submitted: ${submitted.genlayerTxId}. Wait for finalization, then load the job.`,
+        });
+      } catch (error) {
+        setNotice({ kind: 'error', text: message(error) });
+      } finally {
+        setBusy('');
+      }
+      return;
+    }
+
+    setPendingTx(tx);
+    setNotice({ kind: 'info', text: 'Review the fee quote and sign the transaction in the Transaction Kit panel.' });
   };
   const load = async (milestone = false) => {
     if (!ready || !jobId) return setNotice({ kind: 'error', text: 'Enter a valid contract address and job ID.' });

@@ -3,12 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "description": "GenLayer intelligent escrow for human deals and agent jobs",
-  "workspaces": ["frontend"],
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
     "dev": "npm --workspace frontend run dev",
     "build": "npm --workspace frontend run build",
     "check": "npm --workspace frontend run check"
   },
   "packageManager": "npm@10.9.2",
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

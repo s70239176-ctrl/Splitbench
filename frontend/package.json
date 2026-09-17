@@ -12,6 +12,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@genlayer/transaction-kit": "0.1.0-rc.2",
     "@genlayer/transaction-kit-react": "0.1.0-rc.2",
+    "@noble/hashes": "1.7.1",
     "genlayer-js": "2.0.0-rc.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

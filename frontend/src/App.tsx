@@ -29,7 +29,10 @@ export default function App() {
     if (!ready) return setNotice({ kind: 'error', text: 'Enter a valid deployed Splitbench address first.' });
     if (!kit) return setNotice({ kind: 'error', text: 'Connect your Studio Next wallet before starting a transaction.' });
     setBusy(functionName);
-    setPendingTx({ kind: 'write', address: contract, method: functionName, args, ...(value ? { value } : {}) });
+    // Transaction Kit RC adapters have used both names across release lines:
+    // `value` is the GenLayerJS field; `userValue` is the consensus/Kit name.
+    // Pass both for a payable call so the kit cannot silently submit zero GEN.
+    setPendingTx({ kind: 'write', address: contract, method: functionName, args, ...(value !== undefined ? { value, userValue: value } : {}) });
     setNotice({ kind: 'info', text: 'Review the live fee quote, appeal posture, and wallet signature in the Transaction Kit panel.' });
   };
   const load = async (milestone = false) => {

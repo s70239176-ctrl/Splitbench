@@ -1,114 +1,148 @@
 # Splitbench
 
-Splitbench is one GenLayer Intelligent Contract with two modes and one jury:
+> **Before submitting:** replace the two `YOUR_...` placeholders below with the live Vercel URL and finalized Studio Next contract address. Reviewers should never have to guess where the application or contract is deployed.
 
-- **HUMAN / Deal**: client and provider wallets, typically one 10,000-bps milestone.
-- **AGENT / Job**: the same spending wallets, plus ERC-8004 agent-ID labels,
-  immutable Agent Card snapshots, an A2A task pointer, and multiple milestones.
+## Project summary
 
-Lifecycle: `open (GEN locked) → submit → adjudicate (jury transaction) → PENDING → attest finality → ACCEPTED → settle → FINAL`.
+Splitbench is an intelligent escrow layer for human and agent-to-agent work. A client creates an onchain job, locks GEN, and defines the terms and review rubric. The provider submits a public evidence URL for a milestone. GenLayer validators then independently assess that evidence against the stored rubric; only an approved milestone can be settled to the provider. This makes decentralized judgment meaningful: neither the client nor the provider can unilaterally decide whether work met the agreement.
 
-`Accepted is not final. Appeal the adjudicate transaction through GenLayer before
-attesting and settling it.`
+## Live demo
 
-## Step 0 — verified implementation findings
+- App: **https://splitbench-frontend.vercel.app/**
+- Demo video: **https://x.com/stunnerr101/status/2100459738592850211**
 
-The contract uses the current documentation's required first-line runtime hash
-`py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6`, typed
-`TreeMap[str, str]` / `DynArray[str]` storage (which GenVM provisions from
-annotations; do not instantiate in `__init__`), payable `gl.message.value`, and
-the documented EOA external-message transfer interface. `gl.nondet.*` calls are
-inside `gl.vm.run_nondet_unsafe`; only consensus-agreed output is written after
-the block. The validator checks JSON structure, award range, verdict family,
-exact verdict when partials are enabled, and a 500-bps award tolerance. It never
-compares LLM reason prose.
+## Contract details
 
-**API mismatch / finality limitation:** current contract context exposes no
-transaction ID or transaction-lifecycle lookup. Therefore it cannot honestly
-verify that its own `adjudicate` transaction has finalized. V1 explicitly gates
-settlement: a job party must call `attest_finalized_adjudicate(job, mid, txId)`
-after external verification, and `settle(job, mid, txId)` requires the exact
-recorded value. `get_milestone` exposes `last_adjudicate_tx`. This is a testnet
-bridge and must be replaced by a reviewed finality oracle or protocol primitive
-before production custody.
+| Item | Value |
+| --- | --- |
+| Network | GenLayer Studio Next (`studio-dev` SDK/CLI identifier) |
+| Chain ID | `61997` |
+| RPC | `https://studio-next.genlayer.com/api` |
+| Explorer | `https://explorer-studio-dev.genlayer.com/` |
+| Contract | `0xc461a6c917Ae98EAEF17f27153EFc8EbDfcCf093` |
+| Explorer link | `https://explorer-studio-dev.genlayer.com/address/0xc461a6c917Ae98EAEF17f27153EFc8EbDfcCf093` |
 
-## Why there is no `appeal()`
+The deployable Studio Next contract is [`contracts/splitbench_studio_next.py`](contracts/splitbench_studio_next.py). It persists the job terms, wallets, escrow amount, milestones, evidence, jury score, jury reason, and settlement state onchain.
 
-Appeals belong to GenLayer Optimistic Democracy, not this contract. On an
-Accepted transaction, obtain the current charge immediately before appeal:
+## Tech stack
 
-```ts
-const charge = await client.getAppealCharge({ txId });
-await client.appealTransaction({ txId, value: charge });
-```
+- **Frontend:** React 18, TypeScript, Vite
+- **Wallet and transaction UX:** `genlayer-js` 2.0.0 RC1 and GenLayer Transaction Kit RC2
+- **Contract:** Python GenLayer Intelligent Contract using Studio Next storage, nondeterministic consensus, and native GEN transfers
+- **Network:** GenLayer Studio Next, chain ID `61997`
 
-Use `genlayer appeal` from the CLI as the equivalent. Do not re-run the jury in
-an on-contract appeal method.
+## How it works
 
-## HUMAN example
+1. The client connects a Studio Next wallet and opens a job with a provider address, delivery terms, a jury rubric, a deadline, milestones, and a non-zero GEN escrow.
+2. The contract stores the client/provider roles, escrow, job details, and a record for each milestone.
+3. The provider submits a public URL containing the completed work or other verifiable delivery evidence.
+4. The client calls `adjudicate`. GenLayer's leader and validators evaluate the evidence against the stored rubric using consensus-backed nondeterminism.
+5. Splitbench records `APPROVED` or `REJECTED`, plus a score and concise jury reason. An approved milestone can be settled to the provider; rejected work remains unpaid. After a deadline, the client can invoke a timeout refund.
 
-1. Client calls payable `open("HUMAN", provider, brief, milestonesJson, deadline, true)` with GEN.
-2. Provider calls `submit(jobId, "m1", '["https://example.com/evidence"]')`.
-3. Anyone calls `adjudicate(jobId, "m1")`.
-4. Wait through the protocol appeal/finality lifecycle, then a party records the finalized adjudicate tx ID.
-5. Anyone calls `settle(jobId, "m1", txId)`.
+## Run locally
 
-## AGENT / A2A example
+### Prerequisites
 
-Open with mode `AGENT` and non-empty client and provider agent IDs. Resolve
-those agent IDs off-chain to their wallets first (see `scripts/resolve_8004.md`).
-Either party binds the task ID and full card snapshots. The provider maps A2A
-Task artifacts into the URI list passed to `submit`; the jury, not A2A, grades.
-See `a2a/skill.md`.
+- Node.js 22 LTS
+- A browser wallet with a funded Studio Next account
+- A finalized deployment of `contracts/splitbench_studio_next.py`
 
-## Money and close paths
+### Install and configure
 
-Every milestone weight must sum to 10,000. `settle` pays
-`total * awarded_bps / 10000` to provider and refunds its slice balance to the
-client; the final milestone receives any integer-division remainder on the
-client side. `timeout_refund` works after the deadline only if the milestone was
-not submitted/final. Mutual close requires two different parties and is only
-allowed before any settlement, avoiding an unsafe global-split reconciliation
-after partial payouts.
-
-## Deploy
-
-```powershell
-# Install the coherent v0.6 RC toolchain first.
-genlayer network set studio-dev
-genlayer network info
-genlayer deploy --contract contracts/splitbench.py --fee-profile frontend/src/fee-profile.json
-```
-
-Hackathon deployment is Studio Next / the v0.6 Studio-dev preview: chain ID
-`61997` and canonical RPC `https://studio-dev.genlayer.com/api`. Use the matching
-`studioDevnet` SDK chain, not stable Studionet. See
-[`DEPLOY_STUDIO_NEXT.md`](DEPLOY_STUDIO_NEXT.md) for the required measured fee
-profile and verification steps.
-
-## Frontend dashboard
-
-The React/Vite dashboard in `frontend/` connects an EIP-1193 wallet through
-GenLayer JS. It supports contract configuration, fee-estimated writes, job and
-milestone reads, escrow opening, evidence submission, adjudication, finality
-attestation, settlement, timeout refund, and mutual-close flows.
-
-```powershell
-Copy-Item frontend/.env.example frontend/.env
-# Set VITE_SPLITBENCH_ADDRESS to your deployment address.
+```bash
+git clone https://github.com/s70239176-ctrl/Splitbench.git
+cd YOUR-REPOSITORY
 npm install
-npm run dev
+cp frontend/.env.example frontend/.env
 ```
 
-Set `VITE_GENLAYER_NETWORK=studio-dev`. The selected browser wallet must be
-connected to Studio Next (chain ID `61997`). The frontend uses the v0.6
-Transaction Kit fee review, policy verification, signing, and lifecycle tracker;
-escrow value remains distinct from the protocol-fee deposit.
+Set the actual contract address in `frontend/.env`:
 
-## Security notes
+```dotenv
+VITE_SPLITBENCH_ADDRESS=0xYOUR_FINALIZED_SPLITBENCH_CONTRACT_ADDRESS
+VITE_GENLAYER_NETWORK=studio-dev
+```
 
-- The jury is only `adjudicate`; there is no buyer override.
-- Snapshot Agent Cards and briefs; never re-fetch a mutable card URI to alter a deal.
-- Evidence is untrusted prompt input. Keep schemas tight and URLs reviewable.
-- Appeals need funds; query `getAppealCharge` rather than hardcoding a charge.
-- The finality attestation is a documented limitation, not cryptographic proof.
+Start development or produce the production build:
+
+```bash
+npm run dev
+npm run check
+npm run build
+```
+
+Open the local URL printed by Vite. Connect the wallet, enter the contract address if it is not already configured, and use the workflow below.
+
+## Deploy the frontend to Vercel
+
+Import this GitHub repository into Vercel and set **Root Directory** to `frontend`. Add the following Production, Preview, and Development environment variables:
+
+```dotenv
+VITE_SPLITBENCH_ADDRESS=0xYOUR_FINALIZED_SPLITBENCH_CONTRACT_ADDRESS
+VITE_GENLAYER_NETWORK=studio-dev
+```
+
+Do not add a private key or seed phrase to Vercel. The user signs transactions from their browser wallet.
+
+## Demo evidence / reviewer test data
+
+Use **two different Studio Next wallets**: one client and one provider. Set a fresh Unix deadline in the future.
+
+### Open job (client wallet)
+
+| Field | Paste this value |
+| --- | --- |
+| Provider wallet | `0x7255FFA64b297c3Af0064Ec56f07bEEF1C04f2ef` |
+| Job title | `Responsive landing page implementation` |
+| Terms | `Build a responsive landing page with a hero section, feature section, and contact CTA.` |
+| Jury rubric | `Approve only if the submitted page is publicly reachable, responsive, includes a hero, features, and a contact CTA, and has no obvious broken layout.` |
+| Milestone count | `2` |
+| Escrow value (wei) | `1000000000000000000` |
+| Deadline | A future Unix timestamp |
+| Client agent ID | `client-demo-001` *(optional)* |
+| Provider agent ID | `provider-demo-001` *(optional)* |
+
+The escrow value is 1 GEN in wei. Transaction fees are quoted separately by Transaction Kit and must be approved in the wallet.
+
+### Submit and judge (provider then client)
+
+1. After `open` finalizes, note its returned job ID, such as `SB-1`.
+2. Switch to the **provider** wallet and submit milestone index `0` with a public, working URL that satisfies the rubric—for example your deployed landing page.
+3. Switch to the **client** wallet and call `adjudicate` for that same job ID and milestone index.
+4. Load the milestone in the Job Console. Reviewers should see the artifact, status, `jury_score`, and `jury_reason` recorded by the contract.
+5. If the status is `APPROVED`, call `settle` from the client wallet and then reload the milestone. Its status becomes `PAID` and the contract transfers that milestone's GEN to the provider.
+
+For a negative test, submit an unreachable URL or a URL that clearly does not meet the rubric. The jury should return `REJECTED` with an explanation instead of releasing escrow.
+
+## Known limitations
+
+- Studio Next is a test network. GEN, state availability, fee policy, and validator behavior can change or reset.
+- Jury assessment depends on public evidence URLs. Private, expiring, geo-blocked, or unavailable pages cannot be reliably verified.
+- AI judgment is constrained by the stored rubric, but it still has normal model limitations. It is not legal arbitration or a guarantee of objective correctness.
+- Nondeterministic validator review and transaction finalization can take longer than ordinary EVM transactions. Refresh the UI after a transaction finalizes.
+- This prototype supports equal escrow allocation across the job's milestones. It does not yet support custom per-milestone amounts or dispute evidence from both parties.
+
+## Roadmap
+
+### Phase 2
+
+- Per-milestone descriptions and escrow allocations
+- Provider-side evidence history and richer job activity timeline
+- Structured evidence sources such as GitHub PRs, deployment checks, and test reports
+
+### Phase 3
+
+- Agent discovery and ERC-8004 reputation signals
+- Dual-party dispute submissions and specialized review rubrics
+- Production-ready finality and appeal integrations
+- Analytics for job completion, verdict quality, and agent-provider reputation
+
+## Repository structure
+
+```text
+contracts/splitbench_studio_next.py  Studio Next Intelligent Contract
+frontend/                            React/Vite application
+frontend/src/genlayer.ts             Wallet, Studio Next, and Transaction Kit setup
+frontend/src/fee-profile.json        Transaction fee profile
+DEPLOY_STUDIO_NEXT.md                Studio Next deployment notes
+```
